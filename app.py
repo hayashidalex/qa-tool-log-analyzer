@@ -116,7 +116,6 @@ def init_db():
                     query TEXT,
                     response TEXT,
                     tool TEXT,
-                    model TEXT,
                     tester TEXT,
                     is_independent_question TEXT DEFAULT '',
                     response_review TEXT DEFAULT '',
@@ -215,7 +214,6 @@ def parse_log(content, start_date, end_date):
                 'query': match.group(2).strip(),
                 'response': response,
                 'tool': match.group(5).strip(),
-                'model': match.group(4).strip(),
                 'tester': match.group(6).strip(),
                 'is_independent_question': '',
                 'response_review': '',
@@ -230,7 +228,7 @@ def insert_log(conn, log):
     if c.fetchone()[0] == 0:
         c.execute('''
             INSERT INTO logs (
-                timestamp, query, response, tool, model, tester,
+                timestamp, query, response, tool, tester,
                 is_independent_question, response_review,
                 query_review, urls_review
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -239,7 +237,6 @@ def insert_log(conn, log):
             log['query'],
             log['response'],
             log['tool'],
-            log['model'],
             log['tester'],
             log['is_independent_question'],
             log['response_review'],
@@ -505,7 +502,6 @@ def home_route():
 
     # existing filters
     selected_tool = request.args.get('tool', 'All')
-    selected_model = request.args.get('model', 'All')
     selected_independent = request.args.get('independent', 'All')
     selected_response_review = request.args.getlist('response_review')
     selected_query_review = request.args.getlist('query_review')
@@ -523,9 +519,6 @@ def home_route():
         if selected_tool != 'All':
             sql += " AND tool=?"
             params.append(selected_tool)
-        if selected_model != "All":
-            sql += " AND model=?"
-            params.append(selected_model)
         if selected_independent != "All":
             sql += " AND is_independent_question=?"
             params.append(selected_independent)
@@ -668,7 +661,6 @@ def home_route():
         end_date=end_date,
         view_by=view_by,
         selected_tool=selected_tool,
-        selected_model=selected_model,
         selected_independent=selected_independent,
         selected_response_review=selected_response_review,
         selected_query_review=selected_query_review,
@@ -677,17 +669,6 @@ def home_route():
 
         review_status_options=["All", "Reviewed", "Not Reviewed"],
         tool_options=["All", "Code Generation", "Q&A"],
-        model_options=["All", "codestral",
-                     "codellama:latest",
-                     "codellama:13b",
-                     "codegemma:7b",
-                     "phi4",
-                     "mistral-small",
-                     "deepseek-coder-v2",
-                     "gpt-4o-mini",
-                     "qwen2.5-coder:32b",
-                     "llama3.3",
-                     "qwen2.5:latest"],
         is_independent_options=["All", "Yes", "No"],
         response_review_options=["Excellent", "Good", "Satisfactory", "Unsatisfactory"],
         query_review_options=["Good", "Acceptable", "Bad", "I Don't Know"],
@@ -801,7 +782,6 @@ def get_metrics_endpoint():
     end_date = request.args.get('end_date')
     view_by = request.args.get('view_by', 'daily')
     tool = request.args.get('tool', 'All')
-    model = request.args.get('model', 'All')
     independent = request.args.get('independent', 'All')
     response_reviews = request.args.getlist('response_review')
     query_reviews = request.args.getlist('query_review')
@@ -818,9 +798,6 @@ def get_metrics_endpoint():
         if tool != 'All':
             sql += " AND tool=?"
             params.append(tool)
-        if model != "All":
-            sql += " AND model=?"
-            params.append(model)
         if independent != "All":
             sql += " AND is_independent_question=?"
             params.append(independent)

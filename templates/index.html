@@ -147,12 +147,6 @@
             ><option value="{{ option }}" {% if option==selected_tool %}selected{% endif %}>{{ option }}></option>
           {% endfor %}
         </select>
-        <label for="model_filter">Model</label>
-        <select name="model" id="model_filter">
-          {% for option in model_options %}
-            ><option value="{{ option }}" {% if option==selected_model %}selected{% endif %}>{{ option }}></option>
-          {% endfor %}
-        </select>
         <label for="independent_filter">Independent?</label>
         <select name="independent" id="independent_filter">
           {% for option in is_independent_options %}
@@ -261,7 +255,6 @@
         <th class="query-column">Query</th>
         <th class="response-column">Response</th>
         <th>Tool</th>
-        <th>Model</th>
         <th>Tester</th>
         <th>Independent?</th>
         <th>AI Response Review</th>
@@ -279,7 +272,6 @@
         <td class="query-column">{{ log.query }}</td>
         <td class="response-column">{{ log.response|safe }}</td>
         <td>{{ log.tool }}</td>
-        <td>{{ log.model }}</td>
         <td>{{ log.tester }}</td>
         <td>
           <div class="radio-group">
@@ -407,7 +399,6 @@
         end_date:   $('input[name="end_date"]').val(),
         view_by:    $('select[name="view_by"]').val(),
         tool:       $('#tool_filter').val() || "All",
-        model:      $('#model_filter').val() || "All",
         independent: $('#independent_filter').val() || "All",
         response_review: $('#response_review_filter').val() || [],
         query_review:    $('#query_review_filter').val() || [],
@@ -539,12 +530,11 @@
     }
     
     $(document).ready(function(){
-      $('#tool_filter, #model_filter, #independent_filter, #response_review_filter, #query_review_filter, #urls_review_filter, #review_status_filter')
+      $('#tool_filter, #independent_filter, #response_review_filter, #query_review_filter, #urls_review_filter, #review_status_filter')
         .select2({ placeholder: "Select", width: 'style' })
 
       $('#reset-filters').click(function(){
         $('#tool_filter').val("All").trigger('change');
-        $('#model_filter').val("All").trigger('change');
         $('#independent_filter').val("All").trigger('change');
         $('#response_review_filter, #query_review_filter, #urls_review_filter').val(null).trigger('change');
         $('#review_status_filter').val("All").trigger('change');
@@ -558,7 +548,6 @@
       $('input[name^="response_review_"], input[name^="query_review_"], input[name^="urls_review_"]').change(function(){
         updateLogEntry($(this).closest('tr').data('log-id'));
       });
-      <!-- Do we need to add a change on the tool or model filter here that will trigger update metrics?-->
 
       $('#download-all').click(function(){
         let file_type = $('input[name="download_type"]:checked').val();
