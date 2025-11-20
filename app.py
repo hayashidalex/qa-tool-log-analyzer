@@ -157,7 +157,7 @@ def read_logs_from_files():
     
     for filename in sorted(os.listdir(LOG_DIR), reverse=True):
         filepath = os.path.join(LOG_DIR, filename)
-        if not filename.endswith('_custom.log'):
+        if not filename.endswith('_query.log'):
             app.logger.info(f"Skipping file: {filename}")
             continue
 
@@ -231,7 +231,7 @@ def insert_log(conn, log):
                 timestamp, query, response, tool, tester,
                 is_independent_question, response_review,
                 query_review, urls_review
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             log['timestamp'],
             log['query'],
@@ -249,139 +249,153 @@ def insert_log(conn, log):
         app.logger.info(f"Log already exists for timestamp: {log['timestamp']}")
 
 # ------------------------------------- Function to build models graph --------------------------------
-def generate_graph(logs):
-    metrics = calculate_model_metrics(logs)
+# def generate_graph(logs):
+#     metrics = calculate_model_metrics(logs)
 
-    # identify the stack that we want separated visually
-    highlight_group = 'Not Reviewed'
-    spacer_value1 = 0.05
-    spacer_value2 = 0.1
+#     # identify the stack that we want separated visually
+#     highlight_group = 'Not Reviewed'
+#     spacer_value1 = 0.05
+#     spacer_value2 = 0.1
 
-    # print(f"This is the model_metrics dictionary: {metrics}")
-    # Take dictionary and turn it into flat data
-    flat_metrics = []
-    for model, model_metrics in metrics.items():
-        excellent = model_metrics.get('Excellent', 0)
-        good = model_metrics.get('Good', 0)
-        satisfactory = model_metrics.get('Satisfactory', 0)
-        unsatisfactory = model_metrics.get("Unsatisfactory", 0)
-        not_reviewed = model_metrics.get('Not Reviewed', 0)
+#     # print(f"This is the model_metrics dictionary: {metrics}")
+#     # Take dictionary and turn it into flat data
+#     flat_metrics = []
+#     for model, model_metrics in metrics.items():
+#         excellent = model_metrics.get('Excellent', 0)
+#         good = model_metrics.get('Good', 0)
+#         satisfactory = model_metrics.get('Satisfactory', 0)
+#         unsatisfactory = model_metrics.get("Unsatisfactory", 0)
+#         not_reviewed = model_metrics.get('Not Reviewed', 0)
 
-        base_sum = excellent + good + unsatisfactory + satisfactory 
-        total_sum = base_sum + not_reviewed
+#         base_sum = excellent + good + unsatisfactory + satisfactory 
+#         total_sum = base_sum + not_reviewed
         
-        nr_nonzero = False 
-        excellent_nonzero = False
-        good_nonzero = False
-        satisfactory_nonzero = False 
-        unsatisfactory_nonzero = False 
-        # print(f"This is the metrics dictionary for this {model}:\n{model_metrics}")
-        for metric, val in model_metrics.items():
-            if metric != 'Not Reviewed':
-                percent = pct(val, base_sum)
+#         nr_nonzero = False 
+#         excellent_nonzero = False
+#         good_nonzero = False
+#         satisfactory_nonzero = False 
+#         unsatisfactory_nonzero = False 
+#         # print(f"This is the metrics dictionary for this {model}:\n{model_metrics}")
+#         for metric, val in model_metrics.items():
+#             if metric != 'Not Reviewed':
+#                 percent = pct(val, base_sum)
 
-            if metric == 'Not Reviewed':
-                percent = pct(val, total_sum)
-                if val > 0:
-                    nr_nonzero = True
-            flat_metrics.append({
-                'Model': model, 'Metric': metric, 'Value': val,
-                'Percent': f'{percent:.1f}%', 'CustomHover': f'{metric}<br>{percent:.1f}'
-            })
+#             if metric == 'Not Reviewed':
+#                 percent = pct(val, total_sum)
+#                 if val > 0:
+#                     nr_nonzero = True
+#             flat_metrics.append({
+#                 'Model': model, 'Metric': metric, 'Value': val,
+#                 'Percent': f'{percent:.1f}%', 'CustomHover': f'{metric}<br>{percent:.1f}'
+#             })
             
-            # Keep track of metrics with values of 0
-            if metric == "Excellent" and val > 0:
-                excellent_nonzero = True
-            if metric == "Good" and val > 0:
-                good_nonzero = True
-            if metric == "Satisfactory" and val > 0:
-                satisfactory_nonzero = True 
-            if metric == "Unsatisfactory" and val > 0:
-                unsatisfactory_nonzero = True
+#             # Keep track of metrics with values of 0
+#             if metric == "Excellent" and val > 0:
+#                 excellent_nonzero = True
+#             if metric == "Good" and val > 0:
+#                 good_nonzero = True
+#             if metric == "Satisfactory" and val > 0:
+#                 satisfactory_nonzero = True 
+#             if metric == "Unsatisfactory" and val > 0:
+#                 unsatisfactory_nonzero = True
 
-        # Assign spacer values based on whether metrics are nonzero
-        if excellent_nonzero and good_nonzero:
-            spacer_value1 = 0.01
-        else:
-            spacer_value1 = 0
+#         # Assign spacer values based on whether metrics are nonzero
+#         if excellent_nonzero and good_nonzero:
+#             spacer_value1 = 0.01
+#         else:
+#             spacer_value1 = 0
 
-        if excellent_nonzero or good_nonzero or satisfactory_nonzero or unsatisfactory_nonzero: 
-            spacer_value2 = 0.05
-        else:
-            spacer_value2 = 0
+#         if excellent_nonzero or good_nonzero or satisfactory_nonzero or unsatisfactory_nonzero: 
+#             spacer_value2 = 0.05
+#         else:
+#             spacer_value2 = 0
         
-        # Add spacer into flat_metrics
-        flat_metrics.append({
-                    'Model': model, 'Metric': 'Spacer1', 'Value': spacer_value1,
-                    'Percent': '', 'CustomHover': ''
-                })
-        flat_metrics.append({
-                    'Model': model, 'Metric': 'Spacer2', 'Value': spacer_value2,
-                    'Percent': '', 'CustomHover': ''
-                })
+#         # Add spacer into flat_metrics
+#         flat_metrics.append({
+#                     'Model': model, 'Metric': 'Spacer1', 'Value': spacer_value1,
+#                     'Percent': '', 'CustomHover': ''
+#                 })
+#         flat_metrics.append({
+#                     'Model': model, 'Metric': 'Spacer2', 'Value': spacer_value2,
+#                     'Percent': '', 'CustomHover': ''
+#                 })
 
-    # Convert into a data frame
-    if not flat_metrics:
-        df = pd.DataFrame(columns=['Model', 'Metric', 'Value', 'Percent', 'CustomHover'])
-    else: 
-        df = pd.DataFrame(flat_metrics)
+#     # Convert into a data frame
+#     if not flat_metrics:
+#         df = pd.DataFrame(columns=['Model', 'Metric', 'Value', 'Percent', 'CustomHover'])
+#     else: 
+#         df = pd.DataFrame(flat_metrics)
 
-    # Custom color map
-    color_map = {
-        'Excellent': 'rgba(31,255,0,0.4)',
-        'Unsatisfactory': 'rgba(255, 99, 71, 0.8)',
-        'Good': 'rgba(31,255,0,0.4)',
-        "Satisfactory": 'rgba(255,255,0,0.7)',
-        "Not Reviewed": 'rgba(180, 180, 180, 1)',
-        "Spacer1": 'rgba(0,0,0,0)',
-        "Spacer2": 'rgba(0,0,0,0)'
-    }
-    category_order = ['Excellent', 'Spacer1', 'Good', 'Satisfactory', "Unsatisfactory", "Spacer2", "Not Reviewed"]
+#     # Custom color map
+#     color_map = {
+#         'Excellent': 'rgba(31,255,0,0.4)',
+#         'Unsatisfactory': 'rgba(255, 99, 71, 0.8)',
+#         'Good': 'rgba(31,255,0,0.4)',
+#         "Satisfactory": 'rgba(255,255,0,0.7)',
+#         "Not Reviewed": 'rgba(180, 180, 180, 1)',
+#         "Spacer1": 'rgba(0,0,0,0)',
+#         "Spacer2": 'rgba(0,0,0,0)'
+#     }
+#     category_order = ['Excellent', 'Spacer1', 'Good', 'Satisfactory', "Unsatisfactory", "Spacer2", "Not Reviewed"]
 
-    # Step 4: Build the plot
-    fig = px.bar(
-        df,
-        x='Model',
-        y='Value',
-        color='Metric',
-        color_discrete_map=color_map,
-        category_orders={'Metric': category_order},
-        custom_data=['CustomHover'],
-        barmode='stack'
-    )
+#     # Step 4: Build the plot
+#     fig = px.bar(
+#         df,
+#         x='Model',
+#         y='Value',
+#         color='Metric',
+#         color_discrete_map=color_map,
+#         category_orders={'Metric': category_order},
+#         custom_data=['CustomHover'],
+#         barmode='stack'
+#     )
 
-    # Step 5: Customize hover tooltips
-    fig.update_traces(
-        hovertemplate='%{customdata[0]}<extra></extra>' if not df.empty else '',
-        selector=lambda trace: trace.name != 'Spacer1' or trace.name != 'Spacer2'
-    )
+#     # Step 5: Customize hover tooltips
+#     fig.update_traces(
+#         hovertemplate='%{customdata[0]}<extra></extra>' if not df.empty else '',
+#         selector=lambda trace: trace.name != 'Spacer1' or trace.name != 'Spacer2'
+#     )
 
-    # Hide spacer from legend and tooltip
-    fig.for_each_trace(lambda trace: trace.update(showlegend=False, hoverinfo='skip') if trace.name == 'Spacer1' or trace.name == 'Spacer2' else ())
+#     # Hide spacer from legend and tooltip
+#     fig.for_each_trace(lambda trace: trace.update(showlegend=False, hoverinfo='skip') if trace.name == 'Spacer1' or trace.name == 'Spacer2' else ())
 
-    # Update layout with axis labels and template
-    fig.update_layout(
-        xaxis_title="Model",
-        yaxis_title="Number of Queries",
-        title="Accuracy of Responses by Model",
-        template="plotly_white",
-        yaxis=dict(
-        tickmode='linear',
-        dtick=1  # Force tick marks at every 1 unit
-        )
-    )
+#     # Update layout with axis labels and template
+#     fig.update_layout(
+#         xaxis_title="Model",
+#         yaxis_title="Number of Queries",
+#         title="Accuracy of Responses by Model",
+#         template="plotly_white",
+#         yaxis=dict(
+#         tickmode='linear',
+#         dtick=1  # Force tick marks at every 1 unit
+#         )
+#     )
 
-    if df.empty:
-        fig.add_annotation(
-            text="No data available",
-            xref="paper", yref="paper",
-            x=0.5, y=0.5, showarrow=False,
-            font=dict(size=16),
-            align="center"
-        )
+#     if df.empty:
+#         fig.add_annotation(
+#             text="No data available",
+#             xref="paper", yref="paper",
+#             x=0.5, y=0.5, showarrow=False,
+#             font=dict(size=16),
+#             align="center"
+#         )
     
-    # return fig
-    return pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
+#     # return fig
+#     return pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
+
+def generate_graph(metrics):
+    dates = list(metrics.keys())
+    vals = list(metrics.values())
+    fig = go.Figure(data=go.Scatter(x=dates, y=vals, mode='lines+markers', name='Queries'))
+    fig.update_layout(
+        title='Number of Queries',
+        xaxis_title='Date',
+        yaxis_title='Count',
+        template='plotly_white',
+        height=400,
+        margin=dict(l=40, r=40, t=40, b=40)
+    )
+    return pio.to_html(fig, full_html=False)
 
 def get_week_range(year, week_num):
     start_of_year = datetime(year, 1, 1)
@@ -653,7 +667,7 @@ def home_route():
         'index.html',
         logs=paginated_logs,
         total_logs=total_logs,
-        graph_html=generate_graph(all_entries),
+        graph_html=generate_graph(mets),
         metrics_text=[f"{k}: {v} queries" for k, v in mets.items()],
         metrics_summary=metrics_summary,
         filter_summary_message=Markup(f"<h3>Total Queries in Selected Range</h3>"),
