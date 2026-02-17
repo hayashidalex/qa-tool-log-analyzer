@@ -260,6 +260,7 @@
         <th>AI Response Review</th>
         <th>User Query Review</th>
         <th>URLs Review</th>
+        <th>Notes</th>
         <th>Last Updated At</th>
 	      <th>Last Updated By</th>
       </tr>
@@ -359,6 +360,13 @@
             </label>
           </div>
         </td>
+  <!-- New NOTES column -->
+  <td>
+      <textarea class="notes-input"
+                rows="2"
+                style="width: 220px;"
+                {% if read_only %}disabled{% endif %}>{{ log.notes or '' }}</textarea>
+  </td>
 	<td id="last-updated-at" class="last-updated">
 		   {{ log.last_updated_at or '-' }}
 	</td>
@@ -497,6 +505,8 @@
       let resp  = $(`input[name="response_review_${logId}"]:checked`).val() || "";
       let qrev  = $(`input[name="query_review_${logId}"]:checked`).val() || "";
       let urev  = $(`input[name="urls_review_${logId}"]:checked`).val() || "";
+      let notes = $(`tr[data-log-id='${logId}'] .notes-input`).val() || "";
+
 
       if (resp || qrev || urev) {
         indep = "Yes";
@@ -515,7 +525,8 @@
           is_independent_question: indep,
           response_review: resp,
           query_review: qrev,
-          urls_review: urev
+          urls_review: urev,
+          notes: notes
         }),
         success: function(data){
           if (data.status === 'success') {
@@ -548,6 +559,11 @@
       $('input[name^="response_review_"], input[name^="query_review_"], input[name^="urls_review_"]').change(function(){
         updateLogEntry($(this).closest('tr').data('log-id'));
       });
+
+      $('.notes-input').on('change', function(){
+        updateLogEntry($(this).closest('tr').data('log-id'));
+      });
+
 
       $('#download-all').click(function(){
         let file_type = $('input[name="download_type"]:checked').val();

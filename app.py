@@ -121,6 +121,7 @@ def init_db():
                     response_review TEXT DEFAULT '',
                     query_review TEXT DEFAULT '',
                     urls_review TEXT DEFAULT '',
+                    notes TEXT DEFAULT '',
                     last_updated_by TEXT DEFAULT NULL,
                     last_updated_at TEXT DEFAULT NULL
                 )
@@ -134,6 +135,19 @@ def init_db():
         with sqlite3.connect(DB_FILE) as conn:
             for log in logs:
                 insert_log(conn, log)
+
+# helper function for notes
+def ensure_notes_column():
+    """Add notes column if DB existed before notes was introduced."""
+    with sqlite3.connect(DB_FILE) as conn:
+        cur = conn.cursor()
+        cur.execute("PRAGMA table_info(logs)")
+        cols = [row[1] for row in cur.fetchall()]  
+        if "notes" not in cols:
+            cur.execute("ALTER TABLE logs ADD COLUMN notes TEXT DEFAULT ''")
+            conn.commit()
+            app.logger.info("Added notes column to logs table.")
+
 
 def load_offsets():
     if os.path.exists(FILES_OFFSETS_PATH):
@@ -523,6 +537,7 @@ def home_route():
     selected_review_status = request.args.get('review_status', 'All')
 
     init_db()
+    ensure_notes_column()
 
     with sqlite3.connect(DB_FILE) as conn:
         conn.row_factory = sqlite3.Row
@@ -729,7 +744,8 @@ def update_entry():
             'independent': data.get('is_independent_question', ''),
             'response':    data.get('response_review',       ''),
             'query':       data.get('query_review',          ''),
-            'urls':        data.get('urls_review',           '')
+            'urls':        data.get('urls_review',           ''),
+            'notes':       data.get('notes',                 '')
         }
 
         if new['independent'] == 'No':
@@ -753,6 +769,7 @@ def update_entry():
                        response_review=?,
                        query_review=?,
                        urls_review=?,
+                       notes=?,
                        last_updated_by=?,
                        last_updated_at=?
                  WHERE id=?
@@ -761,6 +778,7 @@ def update_entry():
                 new['response'],
                 new['query'],
                 new['urls'],
+                new['notes'],
                 reviewer,
                 ts,
                 log_id
@@ -779,7 +797,8 @@ def update_entry():
 
         return jsonify({
             'status': 'success',
-            'last_updated_at': ts
+            'last_updated_at': ts,
+            'last_updated_by': reviewer
         })
 
     except Exception as e:
@@ -1158,4 +1177,4 @@ def update_table():
 #     return redirect(url_for('home'))
 
 if __name__ == '__main__':
-    app.run(debug=True, host='gh3-internal.ccs.uky.edu', port=7863)
+    app.run(debug=True, host='127.0.0.1', port=5000)
