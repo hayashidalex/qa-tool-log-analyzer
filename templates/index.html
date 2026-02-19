@@ -109,6 +109,33 @@
       font-weight: bold;
       color: #a00;
     }
+  /* --- Collapse Response --- */
+  .response-preview {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;         /* change to 2,3,4 lines if you want */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: normal;
+  }
+
+  .response-toggle {
+    margin-top: 6px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: #0b62d6;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+.response-full[hidden] { display: none; }
+
+/* --- Make dropdown controls look compact in table --- */
+.compact-select {
+  min-width: 140px;
+  padding: 4px;
+}
+
   </style>
 </head>
 <body>
@@ -144,7 +171,7 @@
         <label for="tool_filter">Tool</label>
         <select name="tool" id="tool_filter">
           {% for option in tool_options %}
-            ><option value="{{ option }}" {% if option==selected_tool %}selected{% endif %}>{{ option }}></option>
+            <option value="{{ option }}" {% if option==selected_tool %}selected{% endif %}>{{ option }}</option>
           {% endfor %}
         </select>
         <label for="independent_filter">Independent?</label>
@@ -268,98 +295,61 @@
     <tbody id="logs-table-body">
       {% for log in logs %}
       <tr data-log-id="{{ log.id }}">
-        <td>{{ (page-1)*50 + loop.index }}</td>
+        <td>{{ (page-1)*10 + loop.index }}</td>
         <td>{{ log.timestamp }}</td>
         <td class="query-column">{{ log.query }}</td>
-        <td class="response-column">{{ log.response|safe }}</td>
+        <td class="response-column">
+          <div class="response-preview"></div>
+          <button type="button" class="response-toggle">Expand</button>
+          <div class="response-full" hidden>{{ log.response|safe }}</div>
+        </td>
         <td>{{ log.tool }}</td>
         <td>{{ log.tester }}</td>
-        <td>
-          <div class="radio-group">
-            <label>
-              <input type="radio" name="is_independent_{{ log.id }}" value="Yes"
-                {% if log.is_independent_question=='Yes' %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              Yes
-            </label>
-            <label>
-              <input type="radio" name="is_independent_{{ log.id }}" value="No"
-                {% if log.is_independent_question=='No' %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              No
-            </label>
-          </div>
-        </td>
-        <td>
-          <div class="radio-group">
-            <label>
-              <input type="radio" name="response_review_{{ log.id }}" value="Excellent"
-                {% if log.response_review=='Excellent' %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              Excellent
-            </label>
-            <label>
-              <input type="radio" name="response_review_{{ log.id }}" value="Good"
-                {% if log.response_review=='Good' %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              Good
-            </label>
-            <label>
-              <input type="radio" name="response_review_{{ log.id }}" value="Satisfactory"
-                {% if log.response_review=='Satisfactory' %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              Satisfactory
-            </label>
-            <label>
-              <input type="radio" name="response_review_{{ log.id }}" value="Unsatisfactory"
-                {% if log.response_review=="Unsatisfactory" %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              Unsatisfactory
-            </label>
-          </div>
-        </td>
-        <td>
-          <div class="radio-group">
-            <label>
-              <input type="radio" name="query_review_{{ log.id }}" value="Good"
-                {% if log.query_review=='Good' %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              Good
-            </label>
-            <label>
-              <input type="radio" name="query_review_{{ log.id }}" value="Acceptable"
-                {% if log.query_review=='Acceptable' %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              Acceptable
-            </label>
-            <label>
-              <input type="radio" name="query_review_{{ log.id }}" value="Bad"
-                {% if log.query_review=='Bad' %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              Bad
-            </label>
-            <label>
-              <input type="radio" name="query_review_{{ log.id }}" value="I Don't Know"
-                {% if log.query_review=="I Don't Know" %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              I Don’t Know
-            </label>
-          </div>
-        </td>
-        <td>
-          <div class="radio-group">
-            <label>
-              <input type="radio" name="urls_review_{{ log.id }}" value="Good"
-                {% if log.urls_review=='Good' %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              Good
-            </label>
-            <label>
-              <input type="radio" name="urls_review_{{ log.id }}" value="Acceptable"
-                {% if log.urls_review=='Acceptable' %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              Acceptable
-            </label>
-            <label>
-              <input type="radio" name="urls_review_{{ log.id }}" value="Bad"
-                {% if log.urls_review=='Bad' %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              Bad
-            </label>
-            <label>
-              <input type="radio" name="urls_review_{{ log.id }}" value="I Don't Know"
-                {% if log.urls_review=="I Don't Know" %}checked{% endif %} {% if read_only %}disabled{% endif %}>
-              I Don’t Know
-            </label>
-          </div>
-        </td>
+    
+          <td>
+            <select name="is_independent_{{ log.id }}" class="compact-select" {% if read_only %}disabled{% endif %}>
+              <option value="">—</option>
+              <option value="Yes" {% if log.is_independent_question=='Yes' %}selected{% endif %}>Yes</option>
+              <option value="No"  {% if log.is_independent_question=='No'  %}selected{% endif %}>No</option>
+            </select>
+          </td>
+
+        
+        
+          <td>
+            <select name="response_review_{{ log.id }}" class="compact-select" {% if read_only %}disabled{% endif %}>
+              <option value="">—</option>
+              <option value="Excellent" {% if log.response_review=='Excellent' %}selected{% endif %}>Excellent</option>
+              <option value="Good" {% if log.response_review=='Good' %}selected{% endif %}>Good</option>
+              <option value="Satisfactory" {% if log.response_review=='Satisfactory' %}selected{% endif %}>Satisfactory</option>
+              <option value="Unsatisfactory" {% if log.response_review=="Unsatisfactory" %}selected{% endif %}>Unsatisfactory</option>
+            </select>
+          </td>
+
+        
+        
+          <td>
+            <select name="query_review_{{ log.id }}" class="compact-select" {% if read_only %}disabled{% endif %}>
+              <option value="">—</option>
+              <option value="Good" {% if log.query_review=='Good' %}selected{% endif %}>Good</option>
+              <option value="Acceptable" {% if log.query_review=='Acceptable' %}selected{% endif %}>Acceptable</option>
+              <option value="Bad" {% if log.query_review=='Bad' %}selected{% endif %}>Bad</option>
+              <option value="I Don't Know" {% if log.query_review=="I Don't Know" %}selected{% endif %}>I Don’t Know</option>
+            </select>
+          </td>
+
+        
+        
+          <td>
+            <select name="urls_review_{{ log.id }}" class="compact-select" {% if read_only %}disabled{% endif %}>
+              <option value="">—</option>
+              <option value="Good" {% if log.urls_review=='Good' %}selected{% endif %}>Good</option>
+              <option value="Acceptable" {% if log.urls_review=='Acceptable' %}selected{% endif %}>Acceptable</option>
+              <option value="Bad" {% if log.urls_review=='Bad' %}selected{% endif %}>Bad</option>
+              <option value="I Don't Know" {% if log.urls_review=="I Don't Know" %}selected{% endif %}>I Don’t Know</option>
+            </select>
+          </td>
+        
   <!-- New NOTES column -->
   <td>
       <textarea class="notes-input"
@@ -367,10 +357,9 @@
                 style="width: 220px;"
                 {% if read_only %}disabled{% endif %}>{{ log.notes or '' }}</textarea>
   </td>
-	<td id="last-updated-at" class="last-updated">
-		   {{ log.last_updated_at or '-' }}
-	</td>
-	<td id="last-updated-by">{{ log.last_updated_by or '-' }}</td>
+	<td class="last-updated-at">{{ log.last_updated_at or '-' }}</td>
+  <td class="last-updated-by">{{ log.last_updated_by or '-' }}</td>
+
       </tr>
       {% endfor %}
     </tbody>
@@ -484,36 +473,45 @@
     })
 
     function handleIndependentChange(logId) {
-      let indep = $(`input[name="is_independent_${logId}"]:checked`).val() || "";
+      const indep = $(`select[name="is_independent_${logId}"]`).val() || "";
+
+      const $resp = $(`select[name="response_review_${logId}"]`);
+      const $qrev = $(`select[name="query_review_${logId}"]`);
+      const $urev = $(`select[name="urls_review_${logId}"]`);
+
       if (indep === "No") {
-        $(`input[name^="response_review_${logId}"], input[name^="query_review_${logId}"], input[name^="urls_review_${logId}"]`)
-          .prop('checked', false).prop('disabled', true);
+        $resp.val("").prop('disabled', true);
+        $qrev.val("").prop('disabled', true);
+        $urev.val("").prop('disabled', true);
       } else {
-        $(`input[name^="response_review_${logId}"], input[name^="query_review_${logId}"], input[name^="urls_review_${logId}"]`)
-          .prop('disabled', false);
-        if (!$(`input[name="response_review_${logId}"]:checked`).val())
-          $(`input[name="response_review_${logId}"][value="Excellent"]`).prop('checked', true);
-        if (!$(`input[name="query_review_${logId}"]:checked`).val())
-          $(`input[name="query_review_${logId}"][value="Good"]`).prop('checked', true);
-        if (!$(`input[name="urls_review_${logId}"]:checked`).val())
-          $(`input[name="urls_review_${logId}"][value="Good"]`).prop('checked', true);
+        $resp.prop('disabled', false);
+        $qrev.prop('disabled', false);
+        $urev.prop('disabled', false);
+
+        if (!$resp.val()) $resp.val("Excellent");
+        if (!$qrev.val()) $qrev.val("Good");
+        if (!$urev.val()) $urev.val("Good");
       }
     }
 
+
     function updateLogEntry(logId){
-      let indep = $(`input[name="is_independent_${logId}"]:checked`).val() || "";
-      let resp  = $(`input[name="response_review_${logId}"]:checked`).val() || "";
-      let qrev  = $(`input[name="query_review_${logId}"]:checked`).val() || "";
-      let urev  = $(`input[name="urls_review_${logId}"]:checked`).val() || "";
+      let indep = $(`select[name="is_independent_${logId}"]`).val() || "";
+      let resp  = $(`select[name="response_review_${logId}"]`).val() || "";
+      let qrev  = $(`select[name="query_review_${logId}"]`).val() || "";
+      let urev  = $(`select[name="urls_review_${logId}"]`).val() || "";
       let notes = $(`tr[data-log-id='${logId}'] .notes-input`).val() || "";
+
 
 
       if (resp || qrev || urev) {
         indep = "Yes";
-        $(`input[name="is_independent_${logId}"][value="Yes"]`).prop('checked', true);
-        if (!resp) { resp = "Excellent";   $(`input[value="Excellent"][name="response_review_${logId}"]`).prop('checked', true); }
-        if (!qrev) { qrev = "Good";      $(`input[value="Good"][name="query_review_${logId}"]`).prop('checked', true); }
-        if (!urev) { urev = "Good";      $(`input[value="Good"][name="urls_review_${logId}"]`).prop('checked', true); }
+        $(`select[name="is_independent_${logId}"]`).val("Yes");
+
+        if (!resp) { resp = "Excellent"; $(`select[name="response_review_${logId}"]`).val("Excellent"); }
+        if (!qrev) { qrev = "Good";      $(`select[name="query_review_${logId}"]`).val("Good"); }
+        if (!urev) { urev = "Good";      $(`select[name="urls_review_${logId}"]`).val("Good"); }
+
       }
 
       $.ajax({
@@ -551,17 +549,50 @@
         $('#review_status_filter').val("All").trigger('change');
       });
 
-      $('input[name^="is_independent_"]').change(function(){
-        let id = $(this).closest('tr').data('log-id');
+      $('select[name^="is_independent_"]').on('change', function(){
+        const id = $(this).closest('tr').data('log-id');
         handleIndependentChange(id);
         updateLogEntry(id);
       });
-      $('input[name^="response_review_"], input[name^="query_review_"], input[name^="urls_review_"]').change(function(){
+
+      $('select[name^="response_review_"], select[name^="query_review_"], select[name^="urls_review_"]').on('change', function(){
         updateLogEntry($(this).closest('tr').data('log-id'));
       });
 
+
       $('.notes-input').on('change', function(){
         updateLogEntry($(this).closest('tr').data('log-id'));
+      });
+      
+      // Build response previews + expand/collapse
+      $('#logs-table-body tr').each(function () {
+        const $row = $(this);
+        const $full = $row.find('.response-full');
+        const $preview = $row.find('.response-preview');
+        const $btn = $row.find('.response-toggle');
+
+        const text = ($full.text() || '').replace(/\s+/g, ' ').trim();
+
+        if (text.length <= 240) {
+          $preview.text(text);
+          $btn.hide();
+          return;
+        }
+
+        $preview.text(text.slice(0, 320) + '…');
+
+        $btn.on('click', function () {
+          const expanded = !$full.prop('hidden');
+          if (expanded) {
+            $full.prop('hidden', true);
+            $preview.show();
+            $btn.text('Expand');
+          } else {
+            $full.prop('hidden', false);
+            $preview.hide();
+            $btn.text('Collapse');
+          }
+        });
       });
 
 
