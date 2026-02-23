@@ -166,31 +166,19 @@ def read_logs_from_files():
     end_date = datetime.now()
     app.logger.info(f"Scanning log directory: {LOG_DIR}")
 
-    # Get the file positions info
-    file_positions = load_offsets()
-    
     for filename in sorted(os.listdir(LOG_DIR), reverse=True):
         filepath = os.path.join(LOG_DIR, filename)
         if not filename.endswith('_query.log'):
             app.logger.info(f"Skipping file: {filename}")
             continue
 
-        # Get the last read position of the file 
-        # If it hasn't been read before, set it to 0
-        last_pos = file_positions.get(filename, 0)
         app.logger.info(f"Reading log file: {filepath}")
         try:
             with open(filepath, 'r') as f:
-                # Only read from last read position 
-                f.seek(last_pos)
-                new_content = f.read()
-                log_entries.extend(parse_log(new_content, start_date, end_date))
-                file_positions[filename] = f.tell()
+                content = f.read()
+                log_entries.extend(parse_log(content, start_date, end_date))
         except Exception as e:
             app.logger.error(f"Error processing file {filepath}: {e}")
-    
-    # Save file offsets
-    save_offsets(file_positions)
 
     try:
         log_entries = sorted(
@@ -207,13 +195,12 @@ def read_logs_from_files():
 # --- Log parsing ---
 def parse_log(content, start_date, end_date):
     pattern = re.compile(
-            r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - QUERY: (.*?)\nRESPONSE:\s+(.*?)(?:\n+|\s+)MODEL:\s+(.*?)\nTOOL: (.*?)\nTESTER: (.*?)(?=\n\d{4}-\d{2}-\d{2}|\Z)',
+            r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - QUERY: (.*?)\nRESPONSE:\s+(.*?)(?:\n+|\s+)MODEL:\s+(.*?)\nTOOL: (.*?)(?:\nTESTER: (.*?))?(?=\n\d{4}-\d{2}-\d{2}|\Z)',
                     re.DOTALL | re.MULTILINE
             )
     matches = pattern.finditer(content)
     entries = []
     for match in matches:
-        print("Parsing match...")
         ts_str = match.group(1)
         try:
             ts = datetime.strptime(ts_str, '%Y-%m-%d %H:%M:%S,%f')
@@ -228,7 +215,7 @@ def parse_log(content, start_date, end_date):
                 'query': match.group(2).strip(),
                 'response': response,
                 'tool': match.group(5).strip(),
-                'tester': match.group(6).strip(),
+                'tester': match.group(6).strip() if match.group(6) else '',
                 'is_independent_question': '',
                 'response_review': '',
                 'query_review': '',
@@ -1177,4 +1164,4 @@ def update_table():
 #     return redirect(url_for('home'))
 
 if __name__ == '__main__':
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    app.run(debug=True, host=os.getenv('FLASK_HOST', '127.0.0.1'), port=int(os.getenv('FLASK_PORT', 5000)))
