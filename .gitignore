@@ -23,3 +23,5 @@ auth.py
 
 # Ignore __pycache__ directories
 __pycache__/
+CLAUDE.md
+TODO.md
