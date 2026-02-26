@@ -140,6 +140,11 @@
 </head>
 <body>
   <h1>Log Analyzer</h1>
+  <div style="float: right; margin-top: -40px;">
+    <span>Logged in as: <strong>{{ session['user_id'] }}</strong></span>
+    &nbsp;|&nbsp;
+    <a href="{{ url_for('auth.logout') }}">Logout</a>
+  </div>
   {% if read_only %}
     <div class="read-only-banner">
       You are logged in as a read-only user. No changes to the database are permitted.
