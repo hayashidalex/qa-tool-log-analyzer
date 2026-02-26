@@ -59,7 +59,7 @@ app = Flask(__name__)
 app.secret_key = FLASK_SECRET_KEY
 
 
-from auth import auth_bp, login_required
+from app_auth import auth_bp, login_required
 app.register_blueprint(auth_bp)
 
 
