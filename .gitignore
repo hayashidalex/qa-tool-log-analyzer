@@ -21,6 +21,9 @@ logs/
 # Ignore auth.py
 auth.py
 
+# Ignore users file (contains credentials)
+users.json
+
 # Ignore __pycache__ directories
 __pycache__/
 CLAUDE.md

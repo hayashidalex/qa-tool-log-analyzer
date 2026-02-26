@@ -2,13 +2,14 @@
 
 from flask import Blueprint, request, redirect, url_for, session, render_template, flash
 from functools import wraps
+import json
+import os
 
 auth_bp = Blueprint('auth', __name__)
 
-# Dummy user list (replace later with DB or secure store)
-users = {
-    'Mami': 'Hayashida'
-}
+_users_file = os.path.join(os.path.dirname(__file__), 'users.json')
+with open(_users_file) as f:
+    users = json.load(f)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
