@@ -3,7 +3,8 @@ import logging
 
 from flask import Flask
 
-from config import FLASK_SECRET_KEY, UNAUTHORIZED_LOG_PATH, USER_LOGIN_LOG_PATH
+from config import FLASK_SECRET_KEY, UNAUTHORIZED_LOG_PATH, USER_LOGIN_LOG_PATH, validate
+validate()
 from app_auth import auth_bp
 from routes import main_bp
 from db import init_db, ensure_notes_column
