@@ -18,7 +18,7 @@ def login():
         password = request.form['password']
         if username in users and users[username] == password:
             session['user_id'] = username
-            return redirect(url_for('home_route'))  # or 'main.dashboard' if dashboard is in another blueprint
+            return redirect(url_for('main.home_route'))
         else:
             flash('Invalid credentials', 'danger')
             return render_template('login.html')
