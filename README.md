@@ -65,7 +65,7 @@ Visit `http://127.0.0.1:5001` in your browser.
 
 ## Authentication
 
-Login is required. Credentials are currently hardcoded in `auth.py` (temporary — see TODO.md). The original design used CILogon OAuth, which is commented out at the bottom of `app.py`.
+Login is required. Credentials are stored in `users.json` (plaintext — see TODO.md). The original design used CILogon OAuth, which is commented out at the bottom of `app.py`.
 
 ## Log Ingestion
 
