@@ -122,12 +122,6 @@ def home_route():
     )
 
 
-@main_bp.route('/dashboard')
-@login_required
-def dashboard():
-    return render_template('dashboard.html', user=session['user_id'])
-
-
 @main_bp.route('/update_entry', methods=['POST'])
 def update_entry():
     if session.get('read_only'):
