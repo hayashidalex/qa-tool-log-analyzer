@@ -1,9 +1,8 @@
 import os
 import sqlite3
-import json
 import logging
 
-from config import DB_FILE, FILES_OFFSETS_PATH
+from config import DB_FILE
 from log_parser import read_logs_from_files
 
 logger = logging.getLogger(__name__)
@@ -53,18 +52,6 @@ def ensure_notes_column():
             cur.execute("ALTER TABLE logs ADD COLUMN notes TEXT DEFAULT ''")
             conn.commit()
             logger.info("Added notes column to logs table.")
-
-
-def load_offsets():
-    if FILES_OFFSETS_PATH and os.path.exists(FILES_OFFSETS_PATH):
-        with open(FILES_OFFSETS_PATH, 'r') as f:
-            return json.load(f)
-    return {}
-
-
-def save_offsets(positions):
-    with open(FILES_OFFSETS_PATH, 'w') as f:
-        json.dump(positions, f)
 
 
 def insert_log(conn, log):
