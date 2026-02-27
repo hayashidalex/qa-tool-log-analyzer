@@ -89,3 +89,30 @@ Create a `users.json` file in the project root with at least one entry in `write
 ## Log Ingestion
 
 The app creates the database and ingests all log files from `LOG_DIR` on startup. Use the **Update Logs** button to ingest any new entries added since the last load.
+
+## Repository Structure
+
+```
+qa-tool-log-analyzer/
+├── app.py               # App factory: creates Flask app, registers blueprints, runs init_db at startup
+├── app_auth.py          # Auth blueprint: login/logout routes and login_required decorator
+├── config.py            # All env vars and constants (single source of truth)
+├── db.py                # SQLite schema, insert, and get_logs() query builder
+├── log_parser.py        # Reads *_query.log files and parses entries via regex (no Flask/SQLite)
+├── metrics.py           # Review counts, Plotly chart generation, metrics summary builder
+├── routes.py            # Main blueprint: home, update_entry, get_metrics, update_table routes
+├── templates/
+│   ├── index.html       # Main UI: filters, stat cards, graph, log table with inline review dropdowns
+│   ├── login.html       # Login form
+│   └── unauthorized.html
+├── pyproject.toml       # Project metadata and dependencies (managed by uv)
+├── requirements.txt     # Pinned dependencies
+└── README.md
+```
+
+**Runtime files (gitignored):**
+```
+.env                     # Environment variables (see Setup)
+users.json               # Plaintext credentials (write_users / read_only_users)
+logs.db                  # SQLite database (created on first run)
+```
