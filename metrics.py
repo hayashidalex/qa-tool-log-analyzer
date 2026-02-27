@@ -52,13 +52,15 @@ def calculate_metrics(logs, view_by):
 
 
 def is_reviewed(log):
-    return any([
-        log.get('is_independent_question'),
-        log.get('response_review'),
-        log.get('query_review'),
-        log.get('urls_review'),
-        log.get('last_updated_at')
-    ])
+    if not log.get('is_independent_question'):
+        return False
+    if log['is_independent_question'] == 'No':
+        return True
+    return bool(
+        log.get('response_review') and
+        log.get('query_review') and
+        log.get('urls_review')
+    )
 
 
 def cnt(reviewed_logs, field, val):
@@ -102,10 +104,12 @@ def calculate_review_counts(logs):
         'resp_good': cnt(reviewed_logs, 'response_review', 'Good'),
         'resp_satisfactory': cnt(reviewed_logs, 'response_review', 'Satisfactory'),
         'resp_unsatisfactory': cnt(reviewed_logs, 'response_review', 'Unsatisfactory'),
-        'query_good': cnt(reviewed_logs, 'query_review', 'Good'),
-        'query_acceptable': cnt(reviewed_logs, 'query_review', 'Acceptable'),
-        'query_bad': cnt(reviewed_logs, 'query_review', 'Bad'),
-        'query_idk': cnt(reviewed_logs, 'query_review', "I Don't Know"),
+        'resp_not_sure': cnt(reviewed_logs, 'response_review', 'Not Sure'),
+        'query_relevant': cnt(reviewed_logs, 'query_review', 'Relevant'),
+        'query_irrelevant': cnt(reviewed_logs, 'query_review', 'Irrelevant'),
+        'query_violation': cnt(reviewed_logs, 'query_review', 'Violation'),
+        'query_badly_formed': cnt(reviewed_logs, 'query_review', 'Badly Formed'),
+        'query_not_sure': cnt(reviewed_logs, 'query_review', 'Not Sure'),
         'urls_good': cnt(reviewed_logs, 'urls_review', 'Good'),
         'urls_acceptable': cnt(reviewed_logs, 'urls_review', 'Acceptable'),
         'urls_bad': cnt(reviewed_logs, 'urls_review', 'Bad'),
@@ -131,13 +135,15 @@ def build_metrics_summary(rc):
     r_good = rc['resp_good']
     r_sat = rc['resp_satisfactory']
     r_unsat = rc['resp_unsatisfactory']
-    sum_resp = r_excel + r_good + r_sat + r_unsat
+    r_not_sure = rc['resp_not_sure']
+    sum_resp = r_excel + r_good + r_sat + r_unsat + r_not_sure
 
-    q_good = rc['query_good']
-    q_acc = rc['query_acceptable']
-    q_bad = rc['query_bad']
-    q_idk = rc['query_idk']
-    sum_q = q_good + q_acc + q_bad + q_idk
+    q_relevant = rc['query_relevant']
+    q_irrelevant = rc['query_irrelevant']
+    q_violation = rc['query_violation']
+    q_badly_formed = rc['query_badly_formed']
+    q_not_sure = rc['query_not_sure']
+    sum_q = q_relevant + q_irrelevant + q_violation + q_badly_formed + q_not_sure
 
     u_good = rc['urls_good']
     u_acc = rc['urls_acceptable']
@@ -160,14 +166,16 @@ def build_metrics_summary(rc):
             f"Excellent: {r_excel} ({pct(r_excel, sum_resp)}%), "
             f"Good: {r_good} ({pct(r_good, sum_resp)}%), "
             f"Satisfactory: {r_sat} ({pct(r_sat, sum_resp)}%), "
-            f"Unsatisfactory: {r_unsat} ({pct(r_unsat, sum_resp)}%)"
+            f"Unsatisfactory: {r_unsat} ({pct(r_unsat, sum_resp)}%), "
+            f"Not Sure: {r_not_sure} ({pct(r_not_sure, sum_resp)}%)"
         ),
         'query': (
             f"Query Review (Reviewed + Independent=Yes): "
-            f"Good: {q_good} ({pct(q_good, sum_q)}%), "
-            f"Acceptable: {q_acc} ({pct(q_acc, sum_q)}%), "
-            f"Bad: {q_bad} ({pct(q_bad, sum_q)}%), "
-            f"I Don't Know: {q_idk} ({pct(q_idk, sum_q)}%)"
+            f"Relevant: {q_relevant} ({pct(q_relevant, sum_q)}%), "
+            f"Irrelevant: {q_irrelevant} ({pct(q_irrelevant, sum_q)}%), "
+            f"Violation: {q_violation} ({pct(q_violation, sum_q)}%), "
+            f"Badly Formed: {q_badly_formed} ({pct(q_badly_formed, sum_q)}%), "
+            f"Not Sure: {q_not_sure} ({pct(q_not_sure, sum_q)}%)"
         ),
         'urls': (
             f"URLs in Response Review (Reviewed + Independent=Yes): "

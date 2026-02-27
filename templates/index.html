@@ -136,6 +136,30 @@
   padding: 4px;
 }
 
+/* --- Stat cards --- */
+.stat-cards {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+.stat-card {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 12px 20px;
+  text-align: center;
+  min-width: 110px;
+  background: #fafafa;
+}
+.stat-card .stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+}
+.stat-card .stat-label {
+  font-size: 0.82rem;
+  color: #555;
+  margin-top: 4px;
+}
+
   </style>
 </head>
 <body>
@@ -151,7 +175,7 @@
     </div>
   {% endif %}
 
-  <form method="GET" action="/">
+  <form id="filter-form" method="GET" action="/">
     <div class="form-row">
       <div>
         Start Date:
@@ -160,14 +184,6 @@
       <div>
         End Date:
         <input type="date" name="end_date" value="{{ end_date }}">
-      </div>
-      <div>
-        View:
-        <select name="view_by">
-          <option value="daily"   {% if view_by=='daily'  %}selected{% endif %}>Daily</option>
-          <option value="weekly"  {% if view_by=='weekly' %}selected{% endif %}>Weekly</option>
-          <option value="monthly" {% if view_by=='monthly'%}selected{% endif %}>Monthly</option>
-        </select>
       </div>
     </div>
 
@@ -221,8 +237,8 @@
     </div>
 
     <div class="form-row">
-      <button type="button" id="reset-filters">Reset Filters</button>
-      <button type="submit">Filter Logs</button>
+      <button type="button" id="reset-filters">Clear</button>
+      <button type="submit">Apply</button>
     </div>
 
 	
@@ -239,11 +255,28 @@
   {{ filter_summary_message|safe }}
 
   <div id="metrics-summary" class="metrics-summary">
-    <div>{{ metrics_summary.overall }}</div>
-    <div>{{ metrics_summary.independent }}</div>
-    <div>{{ metrics_summary.response }}</div>
-    <div>{{ metrics_summary.query }}</div>
-    <div>{{ metrics_summary.urls }}</div>
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="stat-value">{{ review_counts.total }}</div>
+        <div class="stat-label">Total Queries</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ review_counts.reviewed }}</div>
+        <div class="stat-label">Reviewed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ review_counts.not_reviewed }}</div>
+        <div class="stat-label">Not Reviewed</div>
+      </div>
+    </div>
+    <details>
+      <summary style="cursor:pointer; color:#0b62d6; font-weight:600;">Breakdown</summary>
+      <div id="breakdown">
+        {% for line in metrics_text %}
+          <div>{{ line }}</div>
+        {% endfor %}
+      </div>
+    </details>
   </div>
 
   <!-- Top pagination -->
@@ -265,14 +298,18 @@
     {% endif %}
   </div>
 
-  <div id="graph-container">
-    {{ graph_html|safe }}
+  <div style="margin: 10px 0;">
+    <label>View By:
+      <select name="view_by" form="filter-form">
+        <option value="daily"   {% if view_by=='daily'  %}selected{% endif %}>Daily</option>
+        <option value="weekly"  {% if view_by=='weekly' %}selected{% endif %}>Weekly</option>
+        <option value="monthly" {% if view_by=='monthly'%}selected{% endif %}>Monthly</option>
+      </select>
+    </label>
   </div>
 
-  <div id="breakdown">
-    {% for line in metrics_text %}
-      <div>{{ line }}</div>
-    {% endfor %}
+  <div id="graph-container">
+    {{ graph_html|safe }}
   </div>
 
   <div class="button-container">
@@ -298,6 +335,13 @@
       </tr>
     </thead>
     <tbody id="logs-table-body">
+      {% if not logs %}
+      <tr>
+        <td colspan="13" style="text-align:center; padding:20px; color:#666;">
+          No entries found for the selected date range and filters.
+        </td>
+      </tr>
+      {% else %}
       {% for log in logs %}
       <tr data-log-id="{{ log.id }}">
         <td>{{ (page-1)*10 + loop.index }}</td>
@@ -327,7 +371,8 @@
               <option value="Excellent" {% if log.response_review=='Excellent' %}selected{% endif %}>Excellent</option>
               <option value="Good" {% if log.response_review=='Good' %}selected{% endif %}>Good</option>
               <option value="Satisfactory" {% if log.response_review=='Satisfactory' %}selected{% endif %}>Satisfactory</option>
-              <option value="Unsatisfactory" {% if log.response_review=="Unsatisfactory" %}selected{% endif %}>Unsatisfactory</option>
+              <option value="Unsatisfactory" {% if log.response_review=='Unsatisfactory' %}selected{% endif %}>Unsatisfactory</option>
+              <option value="Not Sure" {% if log.response_review=='Not Sure' %}selected{% endif %}>Not Sure</option>
             </select>
           </td>
 
@@ -336,10 +381,11 @@
           <td>
             <select name="query_review_{{ log.id }}" class="compact-select" {% if read_only %}disabled{% endif %}>
               <option value="">—</option>
-              <option value="Good" {% if log.query_review=='Good' %}selected{% endif %}>Good</option>
-              <option value="Acceptable" {% if log.query_review=='Acceptable' %}selected{% endif %}>Acceptable</option>
-              <option value="Bad" {% if log.query_review=='Bad' %}selected{% endif %}>Bad</option>
-              <option value="I Don't Know" {% if log.query_review=="I Don't Know" %}selected{% endif %}>I Don’t Know</option>
+              <option value="Relevant" {% if log.query_review=='Relevant' %}selected{% endif %}>Relevant</option>
+              <option value="Irrelevant" {% if log.query_review=='Irrelevant' %}selected{% endif %}>Irrelevant</option>
+              <option value="Violation" {% if log.query_review=='Violation' %}selected{% endif %}>Violation</option>
+              <option value="Badly Formed" {% if log.query_review=='Badly Formed' %}selected{% endif %}>Badly Formed</option>
+              <option value="Not Sure" {% if log.query_review=='Not Sure' %}selected{% endif %}>Not Sure</option>
             </select>
           </td>
 
@@ -351,7 +397,7 @@
               <option value="Good" {% if log.urls_review=='Good' %}selected{% endif %}>Good</option>
               <option value="Acceptable" {% if log.urls_review=='Acceptable' %}selected{% endif %}>Acceptable</option>
               <option value="Bad" {% if log.urls_review=='Bad' %}selected{% endif %}>Bad</option>
-              <option value="I Don't Know" {% if log.urls_review=="I Don't Know" %}selected{% endif %}>I Don’t Know</option>
+              <option value="I Don't Know" {% if log.urls_review=="I Don't Know" %}selected{% endif %}>I Don't Know</option>
             </select>
           </td>
         
@@ -367,6 +413,7 @@
 
       </tr>
       {% endfor %}
+      {% endif %}
     </tbody>
   </table>
 
@@ -451,12 +498,24 @@
         method: 'GET',
         data: getCurrentFilters(),
         success: function(data){
+          const rc = data.review_counts;
+          const ms = data.metrics_summary;
           $('#metrics-summary').html(`
-            <div>${data.metrics_summary.overall}</div>
-            <div>${data.metrics_summary.independent}</div>
-            <div>${data.metrics_summary.response}</div>
-            <div>${data.metrics_summary.query}</div>
-            <div>${data.metrics_summary.urls}</div>
+            <div class="stat-cards">
+              <div class="stat-card"><div class="stat-value">${rc.total}</div><div class="stat-label">Total Queries</div></div>
+              <div class="stat-card"><div class="stat-value">${rc.reviewed}</div><div class="stat-label">Reviewed</div></div>
+              <div class="stat-card"><div class="stat-value">${rc.not_reviewed}</div><div class="stat-label">Not Reviewed</div></div>
+            </div>
+            <details>
+              <summary style="cursor:pointer; color:#0b62d6; font-weight:600;">Breakdown</summary>
+              <div id="breakdown">
+                <div>${ms.overall}</div>
+                <div>${ms.independent}</div>
+                <div>${ms.response}</div>
+                <div>${ms.query}</div>
+                <div>${ms.urls}</div>
+              </div>
+            </details>
           `);
         }
       });
@@ -492,10 +551,6 @@
         $resp.prop('disabled', false);
         $qrev.prop('disabled', false);
         $urev.prop('disabled', false);
-
-        if (!$resp.val()) $resp.val("Excellent");
-        if (!$qrev.val()) $qrev.val("Good");
-        if (!$urev.val()) $urev.val("Good");
       }
     }
 
@@ -508,16 +563,6 @@
       let notes = $(`tr[data-log-id='${logId}'] .notes-input`).val() || "";
 
 
-
-      if (resp || qrev || urev) {
-        indep = "Yes";
-        $(`select[name="is_independent_${logId}"]`).val("Yes");
-
-        if (!resp) { resp = "Excellent"; $(`select[name="response_review_${logId}"]`).val("Excellent"); }
-        if (!qrev) { qrev = "Good";      $(`select[name="query_review_${logId}"]`).val("Good"); }
-        if (!urev) { urev = "Good";      $(`select[name="urls_review_${logId}"]`).val("Good"); }
-
-      }
 
       $.ajax({
         url: '/update_entry',

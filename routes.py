@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import bleach
 import markdown
@@ -25,7 +25,8 @@ main_bp = Blueprint('main', __name__)
 @login_required
 def home_route():
     today = datetime.now().strftime('%Y-%m-%d')
-    start_date = request.args.get('start_date', today)
+    seven_days_ago = (datetime.now() - timedelta(days=6)).strftime('%Y-%m-%d')
+    start_date = request.args.get('start_date', seven_days_ago)
     end_date = request.args.get('end_date', today)
     view_by = request.args.get('view_by', 'daily')
     page = int(request.args.get('page', 1))
@@ -110,8 +111,8 @@ def home_route():
         review_status_options=['All', 'Reviewed', 'Not Reviewed'],
         tool_options=['All', 'Code Generation', 'Q&A'],
         is_independent_options=['All', 'Yes', 'No'],
-        response_review_options=['Excellent', 'Good', 'Satisfactory', 'Unsatisfactory'],
-        query_review_options=['Good', 'Acceptable', 'Bad', "I Don't Know"],
+        response_review_options=['Excellent', 'Good', 'Satisfactory', 'Unsatisfactory', 'Not Sure'],
+        query_review_options=['Relevant', 'Irrelevant', 'Violation', 'Badly Formed', 'Not Sure'],
         urls_review_options=['Good', 'Acceptable', 'Bad', "I Don't Know"],
         page=page,
         total_pages=total_pages,
@@ -119,6 +120,7 @@ def home_route():
         prev_page=prev_page,
         param_str=param_str,
         read_only=session.get('read_only', False),
+        review_counts=rc,
     )
 
 
@@ -154,11 +156,6 @@ def update_entry():
 
         if new['independent'] == 'No':
             new.update({'response': '', 'query': '', 'urls': ''})
-        else:
-            new['independent'] = 'Yes'
-            if not new['response']: new['response'] = 'Excellent'
-            if not new['query']:    new['query']    = 'Good'
-            if not new['urls']:     new['urls']     = 'Good'
 
         reviewer = session.get('user_id', 'anonymous')
         ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -214,7 +211,14 @@ def get_metrics_endpoint():
     rc = calculate_review_counts(rows)
     metrics_summary = build_metrics_summary(rc)
 
-    return jsonify({'metrics_summary': metrics_summary})
+    return jsonify({
+        'metrics_summary': metrics_summary,
+        'review_counts': {
+            'total':       rc['total'],
+            'reviewed':    rc['reviewed'],
+            'not_reviewed': rc['not_reviewed'],
+        }
+    })
 
 
 @main_bp.route('/update_table', methods=['POST'])
