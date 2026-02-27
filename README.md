@@ -65,8 +65,27 @@ Visit `http://127.0.0.1:5001` in your browser.
 
 ## Authentication
 
-Login is required. Credentials are stored in `users.json` (plaintext — see TODO.md). The original design used CILogon OAuth, which is commented out at the bottom of `app.py`.
+Login is required. Credentials are stored in `users.json` (gitignored, plaintext — see TODO.md for planned improvements). There are two access levels:
+
+- **Write users** (`write_users`) — can view and submit reviews
+- **Read-only users** (`read_only_users`) — can view but cannot submit reviews
+
+`users.json` format:
+```json
+{
+    "write_users": {
+        "username": "password"
+    },
+    "read_only_users": {
+        "username": "password"
+    }
+}
+```
+
+### 5. Create `users.json`
+
+Create a `users.json` file in the project root with at least one entry in `write_users`.
 
 ## Log Ingestion
 
-On first visit to the home page, the app creates the database and ingests all log files from `LOG_DIR`. Use the **Update Logs** button to ingest any new entries added since the last load.
+The app creates the database and ingests all log files from `LOG_DIR` on startup. Use the **Update Logs** button to ingest any new entries added since the last load.

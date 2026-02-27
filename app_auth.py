@@ -9,28 +9,39 @@ auth_bp = Blueprint('auth', __name__)
 
 _users_file = os.path.join(os.path.dirname(__file__), 'users.json')
 with open(_users_file) as f:
-    users = json.load(f)
+    _users = json.load(f)
+
+_write_users = _users.get('write_users', {})
+_read_only_users = _users.get('read_only_users', {})
+
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        if username in users and users[username] == password:
+
+        if username in _write_users and _write_users[username] == password:
             session['user_id'] = username
+            session['read_only'] = False
+            return redirect(url_for('main.home_route'))
+        elif username in _read_only_users and _read_only_users[username] == password:
+            session['user_id'] = username
+            session['read_only'] = True
             return redirect(url_for('main.home_route'))
         else:
             flash('Invalid credentials', 'danger')
             return render_template('login.html')
 
-    # If GET request, show login form
     return render_template('login.html')
+
 
 @auth_bp.route('/logout')
 def logout():
     session.clear()
     flash('You have been logged out.', 'info')
     return redirect(url_for('auth.login'))
+
 
 def login_required(f):
     @wraps(f)
