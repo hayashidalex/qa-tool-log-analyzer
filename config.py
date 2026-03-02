@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 FLASK_SECRET_KEY = os.getenv('FLASK_SECRET_KEY')
+FLASK_HOST = os.getenv('FLASK_HOST', '127.0.0.1')
+FLASK_PORT = int(os.getenv('FLASK_PORT', 5000))
 
 LOG_DIR = os.getenv('LOG_DIR')
 DB_FILE = os.getenv('DATABASE_PATH')
@@ -36,7 +38,11 @@ def validate():
         )
 
 
-ALLOWED_TAGS = ['a', 'br', 'code', 'pre', 'em', 'strong', 'p', 'span']
+ALLOWED_TAGS = [
+    'a', 'br', 'code', 'pre', 'em', 'strong', 'p', 'span',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'ul', 'ol', 'li', 'blockquote', 'hr',
+]
 ALLOWED_ATTRIBUTES = {
     'a': ['href', 'title', 'target'],
     'span': ['style']

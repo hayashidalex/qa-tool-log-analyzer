@@ -3,7 +3,7 @@ import logging
 
 from flask import Flask
 
-from config import FLASK_SECRET_KEY, UNAUTHORIZED_LOG_PATH, USER_LOGIN_LOG_PATH, validate
+from config import FLASK_SECRET_KEY, FLASK_HOST, FLASK_PORT, UNAUTHORIZED_LOG_PATH, USER_LOGIN_LOG_PATH, validate
 validate()
 from app_auth import auth_bp
 from routes import main_bp
@@ -45,8 +45,4 @@ with app.app_context():
     ensure_notes_column()
 
 if __name__ == '__main__':
-    app.run(
-        debug=True,
-        host=os.getenv('FLASK_HOST', '127.0.0.1'),
-        port=int(os.getenv('FLASK_PORT', 5000))
-    )
+    app.run(debug=True, host=FLASK_HOST, port=FLASK_PORT)

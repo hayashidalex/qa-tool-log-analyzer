@@ -9,13 +9,11 @@ logger = logging.getLogger(__name__)
 
 
 def init_db():
-    newly_created = False
     if not os.path.exists(DB_FILE):
         logger.info("Initializing new database.")
-        newly_created = True
         with sqlite3.connect(DB_FILE) as conn:
             conn.execute('''
-                CREATE TABLE IF NOT EXISTS logs (
+                CREATE TABLE logs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp TEXT,
                     query TEXT,
@@ -31,15 +29,10 @@ def init_db():
                     last_updated_at TEXT DEFAULT NULL
                 )
             ''')
-            conn.commit()
+            for log in read_logs_from_files():
+                insert_log(conn, log)
     else:
         logger.info("Database already exists.")
-
-    if newly_created:
-        logs = read_logs_from_files()
-        with sqlite3.connect(DB_FILE) as conn:
-            for log in logs:
-                insert_log(conn, log)
 
 
 def ensure_notes_column():
@@ -78,7 +71,6 @@ def insert_log(conn, log):
             log['query_review'],
             log['urls_review']
         ))
-        conn.commit()
         logger.info(f"Inserted log with timestamp: {log['timestamp']}")
     else:
         logger.info(f"Log already exists for timestamp: {log['timestamp']}")
@@ -86,7 +78,7 @@ def insert_log(conn, log):
 
 def get_logs(start_date, end_date, tool='All', independent='All',
              response_reviews=None, query_reviews=None, urls_reviews=None,
-             review_status='All'):
+             review_status='All', reviewed_by_others=None):
     """Build and run the filtered log query. Returns a list of dicts."""
     sql = "SELECT * FROM logs WHERE timestamp BETWEEN ? AND ?"
     params = [f"{start_date} 00:00:00,000", f"{end_date} 23:59:59,999"]
@@ -122,6 +114,10 @@ def get_logs(start_date, end_date, tool='All', independent='All',
             "urls_review=''",
             "last_updated_at IS NULL",
         ]) + ")"
+
+    if reviewed_by_others:
+        sql += " AND last_updated_by IS NOT NULL AND last_updated_by != ?"
+        params.append(reviewed_by_others)
 
     sql += " ORDER BY timestamp DESC"
 

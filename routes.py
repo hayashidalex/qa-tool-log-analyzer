@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import datetime, timedelta
+from urllib.parse import urlencode
 
 import bleach
 import markdown
@@ -7,15 +8,15 @@ from flask import (
     Blueprint, request, render_template, session,
     redirect, url_for, jsonify, flash, current_app
 )
-from markupsafe import Markup, escape
+from markupsafe import escape
 
 from app_auth import login_required
 from config import DB_FILE, PER_PAGE, ALLOWED_TAGS, ALLOWED_ATTRIBUTES
 from db import get_logs, insert_log
 from log_parser import read_logs_from_files
 from metrics import (
-    calculate_metrics, calculate_review_counts, build_metrics_summary,
-    generate_graph, get_paginated_logs, pct
+    calculate_metrics, calculate_review_counts,
+    generate_graph, get_paginated_logs
 )
 
 main_bp = Blueprint('main', __name__)
@@ -29,14 +30,18 @@ def home_route():
     start_date = request.args.get('start_date', seven_days_ago)
     end_date = request.args.get('end_date', today)
     view_by = request.args.get('view_by', 'daily')
-    page = int(request.args.get('page', 1))
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (ValueError, TypeError):
+        page = 1
 
-    selected_tool = request.args.get('tool', 'All')
+    selected_tool = request.args.get('tool', 'Q&A')
     selected_independent = request.args.get('independent', 'All')
     selected_response_review = request.args.getlist('response_review')
     selected_query_review = request.args.getlist('query_review')
     selected_urls_review = request.args.getlist('urls_review')
     selected_review_status = request.args.get('review_status', 'All')
+    show_others_only = request.args.get('reviewed_by_others', '')
 
     all_entries = get_logs(
         start_date, end_date,
@@ -46,6 +51,7 @@ def home_route():
         query_reviews=selected_query_review,
         urls_reviews=selected_urls_review,
         review_status=selected_review_status,
+        reviewed_by_others=session.get('user_id') if show_others_only == 'on' else None,
     )
 
     total_logs = len(all_entries)
@@ -60,45 +66,39 @@ def home_route():
         else:
             log['query'] = escape(log['query'])
         if log.get('response'):
+            log['response'] = markdown.markdown(log['response'])
             log['response'] = bleach.clean(
                 log['response'],
                 tags=ALLOWED_TAGS,
                 attributes=ALLOWED_ATTRIBUTES,
                 strip=True
             )
-            log['response'] = markdown.markdown(log['response'])
         else:
             log['response'] = '(No Response Provided)'
 
     mets = calculate_metrics(all_entries, view_by)
     rc = calculate_review_counts(all_entries)
-    metrics_summary = build_metrics_summary(rc)
 
-    def param_escape(v):
-        return v.replace('&', '%26').replace('=', '%3D').replace(' ', '+')
-
-    param_str = (
-        f"&start_date={param_escape(start_date)}"
-        f"&end_date={param_escape(end_date)}"
-        f"&view_by={param_escape(view_by)}"
-        f"&independent={param_escape(selected_independent)}"
-        f"&review_status={param_escape(selected_review_status)}"
-    )
-    for rr in selected_response_review:
-        param_str += f"&response_review={param_escape(rr)}"
-    for qr in selected_query_review:
-        param_str += f"&query_review={param_escape(qr)}"
-    for ur in selected_urls_review:
-        param_str += f"&urls_review={param_escape(ur)}"
+    params = [
+        ('start_date', start_date),
+        ('end_date', end_date),
+        ('view_by', view_by),
+        ('tool', selected_tool),
+        ('independent', selected_independent),
+        ('review_status', selected_review_status),
+    ]
+    params += [('response_review', rr) for rr in selected_response_review]
+    params += [('query_review', qr) for qr in selected_query_review]
+    params += [('urls_review', ur) for ur in selected_urls_review]
+    if show_others_only == 'on':
+        params.append(('reviewed_by_others', 'on'))
+    param_str = '&' + urlencode(params)
 
     return render_template(
         'index.html',
         logs=paginated_logs,
         total_logs=total_logs,
         graph_html=generate_graph(mets),
-        metrics_text=[f"{k}: {v} queries" for k, v in mets.items()],
-        metrics_summary=metrics_summary,
-        filter_summary_message=Markup('<h3>Total Queries in Selected Range</h3>'),
         start_date=start_date,
         end_date=end_date,
         view_by=view_by,
@@ -111,20 +111,23 @@ def home_route():
         review_status_options=['All', 'Reviewed', 'Not Reviewed'],
         tool_options=['All', 'Code Generation', 'Q&A'],
         is_independent_options=['All', 'Yes', 'No'],
-        response_review_options=['Excellent', 'Good', 'Satisfactory', 'Unsatisfactory', 'Not Sure'],
-        query_review_options=['Relevant', 'Irrelevant', 'Violation', 'Badly Formed', 'Not Sure'],
+        response_review_options=['Excellent', 'Satisfactory', 'Unsatisfactory', 'Not Sure'],
+        query_review_options=['Relevant', 'Irrelevant', 'Violation', 'Unclear', 'Not Sure'],
         urls_review_options=['Good', 'Acceptable', 'Bad', "I Don't Know"],
         page=page,
+        per_page=PER_PAGE,
         total_pages=total_pages,
         next_page=next_page,
         prev_page=prev_page,
         param_str=param_str,
         read_only=session.get('read_only', False),
         review_counts=rc,
+        show_others_only=show_others_only,
     )
 
 
 @main_bp.route('/update_entry', methods=['POST'])
+@login_required
 def update_entry():
     if session.get('read_only'):
         return jsonify({'status': 'error', 'message': 'Read-only users cannot update entries.'}), 403
@@ -132,37 +135,16 @@ def update_entry():
     try:
         data = request.json
         log_id = data['id']
-
-        with sqlite3.connect(DB_FILE) as conn:
-            conn.row_factory = sqlite3.Row
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT is_independent_question AS independent,
-                       response_review        AS response,
-                       query_review           AS query,
-                       urls_review            AS urls
-                  FROM logs
-                 WHERE id=?
-            """, (log_id,))
-            old = dict(cur.fetchone())
-
-        new = {
-            'independent': data.get('is_independent_question', ''),
-            'response':    data.get('response_review', ''),
-            'query':       data.get('query_review', ''),
-            'urls':        data.get('urls_review', ''),
-            'notes':       data.get('notes', ''),
-        }
-
-        if new['independent'] == 'No':
-            new.update({'response': '', 'query': '', 'urls': ''})
-
+        independent = data.get('is_independent_question', '')
         reviewer = session.get('user_id', 'anonymous')
         ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
+        response_review = data.get('response_review', '') if independent != 'No' else ''
+        query_review    = data.get('query_review', '')    if independent != 'No' else ''
+        urls_review     = data.get('urls_review', '')     if independent != 'No' else ''
+
         with sqlite3.connect(DB_FILE) as conn:
-            cur = conn.cursor()
-            cur.execute("""
+            conn.cursor().execute("""
                 UPDATE logs
                    SET is_independent_question=?,
                        response_review=?,
@@ -172,31 +154,22 @@ def update_entry():
                        last_updated_by=?,
                        last_updated_at=?
                  WHERE id=?
-            """, (
-                new['independent'], new['response'], new['query'],
-                new['urls'], new['notes'], reviewer, ts, log_id
-            ))
-            conn.commit()
+            """, (independent, response_review, query_review, urls_review,
+                  data.get('notes', ''), reviewer, ts, log_id))
 
-        changed = [k for k in old if old[k] != new[k]]
-        msg = f"Record {log_id} updated: fields changed = {', '.join(changed) or 'none'}"
-        print(msg)
-        current_app.logger.info(msg)
-
+        current_app.logger.info(f"Record {log_id} updated by {reviewer}")
         return jsonify({'status': 'success', 'last_updated_at': ts, 'last_updated_by': reviewer})
 
     except Exception as e:
-        err = f"Error updating record {data.get('id')}: {e}"
-        print(err)
-        current_app.logger.error(err, exc_info=True)
+        current_app.logger.error(f"Error updating record {data.get('id')}: {e}", exc_info=True)
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 @main_bp.route('/get_metrics', methods=['GET'])
+@login_required
 def get_metrics_endpoint():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    view_by = request.args.get('view_by', 'daily')
 
     rows = get_logs(
         start_date, end_date,
@@ -209,20 +182,21 @@ def get_metrics_endpoint():
     )
 
     rc = calculate_review_counts(rows)
-    metrics_summary = build_metrics_summary(rc)
 
     return jsonify({
-        'metrics_summary': metrics_summary,
         'review_counts': {
-            'total':       rc['total'],
-            'reviewed':    rc['reviewed'],
+            'total':        rc['total'],
+            'reviewed':     rc['reviewed'],
             'not_reviewed': rc['not_reviewed'],
-        }
+        },
     })
 
 
 @main_bp.route('/update_table', methods=['POST'])
+@login_required
 def update_table():
+    if session.get('read_only'):
+        return jsonify({'status': 'error', 'message': 'Read-only users cannot update the table.'}), 403
     latest_logs = read_logs_from_files()
     with sqlite3.connect(DB_FILE) as conn:
         for log in latest_logs:

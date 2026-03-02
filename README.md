@@ -9,8 +9,6 @@ A Flask-based log analyzer for FABRIC's Q&A and Code Generation tools. Team memb
 - Interactive Plotly graphs for metrics visualization
 - User authentication (login required to access)
 
-> **Note:** This app is under active development. See [TODO.md](TODO.md) for known issues and planned improvements.
-
 ## Requirements
 
 - Python 3.13+
@@ -65,7 +63,7 @@ Visit `http://127.0.0.1:5001` in your browser.
 
 ## Authentication
 
-Login is required. Credentials are stored in `users.json` (gitignored, plaintext — see TODO.md for planned improvements). There are two access levels:
+Login is required. Credentials are stored in `users.json` (gitignored, plaintext). There are two access levels:
 
 - **Write users** (`write_users`) — can view and submit reviews
 - **Read-only users** (`read_only_users`) — can view but cannot submit reviews

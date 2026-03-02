@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Log Analyzer</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
   <link
     href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css"
     rel="stylesheet"
@@ -50,15 +51,6 @@
     }
     .pagination a { color: blue; }
     .pagination .current-page { color: red; }
-    #breakdown {
-      height: 150px;
-      overflow-y: auto;
-      column-width: 45ch;
-      column-gap: 5px;
-      border: 1px solid #ccc;
-      padding: 5px;
-      margin-bottom: 20px;
-    }
     .query-column {
       width: 300px;
       max-width: 300px;
@@ -203,7 +195,7 @@
         </select>
       </div>
       <div>
-        <label for="response_review_filter">AI Response Review:</label>
+        <label for="response_review_filter">LLM Response:</label>
         <select name="response_review" id="response_review_filter" multiple>
           {% for opt in response_review_options %}
             <option value="{{ opt }}" {% if opt in selected_response_review %}selected{% endif %}>{{ opt }}</option>
@@ -211,7 +203,7 @@
         </select>
       </div>
       <div>
-        <label for="query_review_filter">User Query Review:</label>
+        <label for="query_review_filter">User Query:</label>
         <select name="query_review" id="query_review_filter" multiple>
           {% for opt in query_review_options %}
             <option value="{{ opt }}" {% if opt in selected_query_review %}selected{% endif %}>{{ opt }}</option>
@@ -219,7 +211,7 @@
         </select>
       </div>
       <div>
-        <label for="urls_review_filter">URLs Review:</label>
+        <label for="urls_review_filter">RAG (Document Retrieval):</label>
         <select name="urls_review" id="urls_review_filter" multiple>
           {% for opt in urls_review_options %}
             <option value="{{ opt }}" {% if opt in selected_urls_review %}selected{% endif %}>{{ opt }}</option>
@@ -234,6 +226,14 @@
           {% endfor %}
         </select>
       </div>
+    </div>
+
+    <div class="form-row">
+      <label>
+        <input type="checkbox" name="reviewed_by_others" id="reviewed_by_others"
+               value="on" {% if show_others_only == 'on' %}checked{% endif %}>
+        Show only reviews by others
+      </label>
     </div>
 
     <div class="form-row">
@@ -252,7 +252,7 @@
     </div> -->
   </form>
 
-  {{ filter_summary_message|safe }}
+  <h3>Total Queries in Selected Range</h3>
 
   <div id="metrics-summary" class="metrics-summary">
     <div class="stat-cards">
@@ -269,14 +269,6 @@
         <div class="stat-label">Not Reviewed</div>
       </div>
     </div>
-    <details>
-      <summary style="cursor:pointer; color:#0b62d6; font-weight:600;">Breakdown</summary>
-      <div id="breakdown">
-        {% for line in metrics_text %}
-          <div>{{ line }}</div>
-        {% endfor %}
-      </div>
-    </details>
   </div>
 
   <!-- Top pagination -->
@@ -313,7 +305,7 @@
   </div>
 
   <div class="button-container">
-    <button id="update-table" class="btn btn-primary">Update Logs</button>
+    <button id="update-table">Reload Logs</button>
   </div>
 
   <table id="logs-table">
@@ -326,9 +318,9 @@
         <th>Tool</th>
         <th>Tester</th>
         <th>Independent?</th>
-        <th>AI Response Review</th>
-        <th>User Query Review</th>
-        <th>URLs Review</th>
+        <th>User Query</th>
+        <th>RAG (Document Retrieval)</th>
+        <th>LLM Response</th>
         <th>Notes</th>
         <th>Last Updated At</th>
 	      <th>Last Updated By</th>
@@ -344,7 +336,7 @@
       {% else %}
       {% for log in logs %}
       <tr data-log-id="{{ log.id }}">
-        <td>{{ (page-1)*10 + loop.index }}</td>
+        <td>{{ (page-1)*per_page + loop.index }}</td>
         <td>{{ log.timestamp }}</td>
         <td class="query-column">{{ log.query }}</td>
         <td class="response-column">
@@ -364,33 +356,20 @@
           </td>
 
         
-        
-          <td>
-            <select name="response_review_{{ log.id }}" class="compact-select" {% if read_only %}disabled{% endif %}>
-              <option value="">—</option>
-              <option value="Excellent" {% if log.response_review=='Excellent' %}selected{% endif %}>Excellent</option>
-              <option value="Good" {% if log.response_review=='Good' %}selected{% endif %}>Good</option>
-              <option value="Satisfactory" {% if log.response_review=='Satisfactory' %}selected{% endif %}>Satisfactory</option>
-              <option value="Unsatisfactory" {% if log.response_review=='Unsatisfactory' %}selected{% endif %}>Unsatisfactory</option>
-              <option value="Not Sure" {% if log.response_review=='Not Sure' %}selected{% endif %}>Not Sure</option>
-            </select>
-          </td>
 
-        
-        
           <td>
             <select name="query_review_{{ log.id }}" class="compact-select" {% if read_only %}disabled{% endif %}>
               <option value="">—</option>
               <option value="Relevant" {% if log.query_review=='Relevant' %}selected{% endif %}>Relevant</option>
               <option value="Irrelevant" {% if log.query_review=='Irrelevant' %}selected{% endif %}>Irrelevant</option>
               <option value="Violation" {% if log.query_review=='Violation' %}selected{% endif %}>Violation</option>
-              <option value="Badly Formed" {% if log.query_review=='Badly Formed' %}selected{% endif %}>Badly Formed</option>
+              <option value="Unclear" {% if log.query_review=='Unclear' %}selected{% endif %}>Unclear</option>
               <option value="Not Sure" {% if log.query_review=='Not Sure' %}selected{% endif %}>Not Sure</option>
             </select>
           </td>
 
-        
-        
+
+
           <td>
             <select name="urls_review_{{ log.id }}" class="compact-select" {% if read_only %}disabled{% endif %}>
               <option value="">—</option>
@@ -398,6 +377,18 @@
               <option value="Acceptable" {% if log.urls_review=='Acceptable' %}selected{% endif %}>Acceptable</option>
               <option value="Bad" {% if log.urls_review=='Bad' %}selected{% endif %}>Bad</option>
               <option value="I Don't Know" {% if log.urls_review=="I Don't Know" %}selected{% endif %}>I Don't Know</option>
+            </select>
+          </td>
+
+
+
+          <td>
+            <select name="response_review_{{ log.id }}" class="compact-select" {% if read_only %}disabled{% endif %}>
+              <option value="">—</option>
+              <option value="Excellent" {% if log.response_review=='Excellent' %}selected{% endif %}>Excellent</option>
+              <option value="Satisfactory" {% if log.response_review=='Satisfactory' %}selected{% endif %}>Satisfactory</option>
+              <option value="Unsatisfactory" {% if log.response_review=='Unsatisfactory' %}selected{% endif %}>Unsatisfactory</option>
+              <option value="Not Sure" {% if log.response_review=='Not Sure' %}selected{% endif %}>Not Sure</option>
             </select>
           </td>
         
@@ -438,7 +429,6 @@
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist@2.14.0"></script>
   <script>
     $.ajaxSetup({ traditional: true });
 
@@ -455,43 +445,6 @@
         review_status:   $('#review_status_filter').val() || "All"
       };
     }
-    
-//     function updateGraph() {
-//   const graphContainer = document.getElementById("graph-container");
-
-//   // 1. Get current filters
-//   const filters = getCurrentFilters();  // You already have this function
-
-//   // 2. Convert filters to a query string
-//   const queryParams = new URLSearchParams(filters).toString();
-
-//   // 3. Fetch updated HTML from the backend with filters
-//   fetch(`/update_graph?${queryParams}`)
-//     .then(response => response.text())
-//     .then(html => {
-//       // 4. Replace graph container content
-//       graphContainer.innerHTML = html;
-
-//       // 5. Execute any <script> tags in the returned HTML (for Plotly)
-//       const scriptTags = graphContainer.querySelectorAll("script");
-//       scriptTags.forEach(oldScript => {
-//         const newScript = document.createElement("script");
-//         if (oldScript.src) {
-//           newScript.src = oldScript.src;
-//         } else {
-//           newScript.textContent = oldScript.textContent;
-//         }
-//         document.body.appendChild(newScript);
-//         // Clean up to avoid script accumulation
-//         document.body.removeChild(newScript);
-//       });
-//     })
-//     .catch(error => {
-//       console.error("Error updating graph:", error);
-//     });
-// }
-
-
     function updateMetrics(){
       $.ajax({
         url: '/get_metrics',
@@ -499,27 +452,20 @@
         data: getCurrentFilters(),
         success: function(data){
           const rc = data.review_counts;
-          const ms = data.metrics_summary;
           $('#metrics-summary').html(`
             <div class="stat-cards">
               <div class="stat-card"><div class="stat-value">${rc.total}</div><div class="stat-label">Total Queries</div></div>
               <div class="stat-card"><div class="stat-value">${rc.reviewed}</div><div class="stat-label">Reviewed</div></div>
               <div class="stat-card"><div class="stat-value">${rc.not_reviewed}</div><div class="stat-label">Not Reviewed</div></div>
             </div>
-            <details>
-              <summary style="cursor:pointer; color:#0b62d6; font-weight:600;">Breakdown</summary>
-              <div id="breakdown">
-                <div>${ms.overall}</div>
-                <div>${ms.independent}</div>
-                <div>${ms.response}</div>
-                <div>${ms.query}</div>
-                <div>${ms.urls}</div>
-              </div>
-            </details>
           `);
         }
       });
     }
+
+    $('select[name="view_by"]').on('change', function() {
+      document.getElementById('filter-form').submit();
+    });
 
     $("#update-table").on("click", function() {
       $.ajax({
@@ -527,14 +473,39 @@
         type: "POST",
         contentType: "application/json",
         success: function(response){
-          window.location = "?page=1";
+          const params = new URLSearchParams(window.location.search);
+          params.set('page', '1');
+          window.location = '?' + params.toString();
         },
         error: function(err){
           console.error("Update failed", err);
-          alter("Something went wrong while updating.")
+          alert("Something went wrong while updating.")
         }
       })
     })
+
+    const reviewColors = {
+      'Excellent':      '#c8f5c8',
+      'Relevant':       '#c8f5c8',
+      'Good':           '#c8f5c8',
+      'Acceptable':     '#e8f5c8',
+      'Satisfactory':   '#fff3cd',
+      'Unclear':        '#fff3cd',
+      'Not Sure':       '#e9ecef',
+      "I Don't Know":   '#e9ecef',
+      'Irrelevant':     '#f8d7da',
+      'Bad':            '#f8d7da',
+      'Unsatisfactory': '#f8d7da',
+      'Violation':      '#f1aeb5',
+    };
+
+    function applyReviewColor(sel) {
+      $(sel).css('background-color', reviewColors[$(sel).val()] || '');
+    }
+
+    $('select[name^="query_review_"], select[name^="urls_review_"], select[name^="response_review_"]')
+      .each(function() { applyReviewColor(this); })
+      .on('change', function() { applyReviewColor(this); });
 
     function handleIndependentChange(logId) {
       const indep = $(`select[name="is_independent_${logId}"]`).val() || "";
@@ -544,9 +515,9 @@
       const $urev = $(`select[name="urls_review_${logId}"]`);
 
       if (indep === "No") {
-        $resp.val("").prop('disabled', true);
-        $qrev.val("").prop('disabled', true);
-        $urev.val("").prop('disabled', true);
+        $resp.val("").prop('disabled', true).css('background-color', '');
+        $qrev.val("").prop('disabled', true).css('background-color', '');
+        $urev.val("").prop('disabled', true).css('background-color', '');
       } else {
         $resp.prop('disabled', false);
         $qrev.prop('disabled', false);
@@ -597,6 +568,7 @@
         $('#independent_filter').val("All").trigger('change');
         $('#response_review_filter, #query_review_filter, #urls_review_filter').val(null).trigger('change');
         $('#review_status_filter').val("All").trigger('change');
+        $('#reviewed_by_others').prop('checked', false);
       });
 
       $('select[name^="is_independent_"]').on('change', function(){
@@ -645,21 +617,6 @@
         });
       });
 
-
-      $('#download-all').click(function(){
-        let file_type = $('input[name="download_type"]:checked').val();
-        let f = getCurrentFilters();
-        let qs = `?file_type=${file_type}`
-               + `&start_date=${encodeURIComponent(f.start_date)}`
-               + `&end_date=${encodeURIComponent(f.end_date)}`
-               + `&view_by=${encodeURIComponent(f.view_by)}`
-               + `&independent=${encodeURIComponent(f.independent)}`
-               + `&review_status=${encodeURIComponent(f.review_status)}`;
-        f.response_review.forEach(v=> qs+=`&response_review=${encodeURIComponent(v)}`);
-        f.query_review.forEach(v=>    qs+=`&query_review=${encodeURIComponent(v)}`);
-        f.urls_review.forEach(v=>     qs+=`&urls_review=${encodeURIComponent(v)}`);
-        window.location.href = '/download_all' + qs;
-      });
     });
   </script>
 </body>

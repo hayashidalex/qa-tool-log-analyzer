@@ -8,8 +8,16 @@ import os
 auth_bp = Blueprint('auth', __name__)
 
 _users_file = os.path.join(os.path.dirname(__file__), 'users.json')
-with open(_users_file) as f:
-    _users = json.load(f)
+try:
+    with open(_users_file) as f:
+        _users = json.load(f)
+except FileNotFoundError:
+    raise RuntimeError(
+        f"users.json not found at {_users_file}. "
+        "Create it with at least one entry in 'write_users'."
+    )
+except json.JSONDecodeError as e:
+    raise RuntimeError(f"users.json is not valid JSON: {e}")
 
 _write_users = _users.get('write_users', {})
 _read_only_users = _users.get('read_only_users', {})
